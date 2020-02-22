@@ -15,9 +15,27 @@ public class WatchCallback implements Watcher, AsyncCallback.StatCallback, Async
 
     private ZooKeeper zk;
 
+    private String watchPath;
+
     private MyConf conf;
 
-    private CountDownLatch latch = new CountDownLatch(1);
+    private CountDownLatch latch;
+
+    /**
+     * 设置等待
+     * @param init 等待放行数
+     */
+    public void setLatch(int init) {
+        this.latch = new CountDownLatch(init);
+    }
+
+    /**
+     * 设置watch路径
+     * @param watchPath watch路径
+     */
+    public void setWatchPath(String watchPath) {
+        this.watchPath = watchPath;
+    }
 
     public void setZk(ZooKeeper zk) {
         this.zk = zk;
@@ -43,26 +61,30 @@ public class WatchCallback implements Watcher, AsyncCallback.StatCallback, Async
             return;
         }
         // 节点不为空时则获取对应配置信息
-        zk.getData("/smileConfig", this, this, "smile");
+        zk.getData(watchPath, this, this, "NodeChanged");
     }
 
     @Override
     public void process(WatchedEvent event) {
-        switch (event.getType()) {
+        System.out.println(event.toString());
+        Event.EventType type = event.getType();
+        switch (type) {
             case None:
+            case NodeChildrenChanged:
                 break;
             case NodeCreated:
-                zk.getData("/smileConfig", this, this, "smile");
+                System.out.println("watch: create new Node...");
+                zk.getData(watchPath, this, this, "NodeCreated");
                 break;
             case NodeDeleted:
+                System.out.println("watch: delete Node...");
                 // 节点被删除时清空配置信息，等待重新初始化
                 conf.setConnStr("");
                 latch = new CountDownLatch(1);
                 break;
             case NodeDataChanged:
-                zk.getData("/smileConfig", this, this, "smile");
-                break;
-            case NodeChildrenChanged:
+                System.out.println("watch: Node changed...");
+                zk.getData(watchPath, this, this, "NodeChanged");
                 break;
         }
     }
@@ -71,14 +93,15 @@ public class WatchCallback implements Watcher, AsyncCallback.StatCallback, Async
      * 获取数据
      */
     public void await() {
-        zk.exists("/smileConfig", this, this, "smile");
 
         // 阻塞获取配置信息
         try {
+            zk.exists(watchPath, this, this, "initExists");
             System.out.println("wait for configuration...");
             latch.await();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
     }
+
 }

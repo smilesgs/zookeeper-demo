@@ -15,25 +15,15 @@ public class DefaultWatch implements Watcher {
 
     @Override
     public void process(WatchedEvent event) {
-        System.out.println("Default Watch" + event.toString());
-
-        switch (event.getState()) {
-            case Unknown:
-                break;
+        Event.KeeperState state = event.getState();
+        switch (state) {
             case Disconnected:
-                break;
-            case NoSyncConnected:
+                System.out.println("Disconnected...wait...");
+                this.latch = new CountDownLatch(1);
                 break;
             case SyncConnected:
+                System.out.println("Connected...ok...");
                 this.latch.countDown();
-                break;
-            case AuthFailed:
-                break;
-            case ConnectedReadOnly:
-                break;
-            case SaslAuthenticated:
-                break;
-            case Expired:
                 break;
         }
     }

@@ -11,48 +11,53 @@ public class TestConfig {
 
     private ZooKeeper zk;
 
+    private MyConf conf = new MyConf();
+
+    private WatchCallback watchCallback = new WatchCallback();
+
     @Before
     public void conn() {
-        try {
-            zk = ZKUtils.getZK();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        ZKConf zkConf = new ZKConf();
+        zkConf.setAddress("192.168.2.63:2181,192.168.2.64:2181,192.168.2.65:2181,192.168.2.66:2181/smilesTest");
+        zkConf.setSessionTime(1000);
+        ZKUtils.setConf(zkConf);
+
+        DefaultWatch defaultWatch = new DefaultWatch();
+        ZKUtils.setDefaultWatch(defaultWatch);
+
+        zk = ZKUtils.getZK();
     }
 
     @After
     public void close() {
-        try {
-            zk.close();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        ZKUtils.closeZK();
     }
 
     @Test
     public void testConfig() {
-        WatchCallback watch = new WatchCallback();
-        MyConf conf = new MyConf();
-        watch.setConf(conf);
-        watch.setZk(zk);
+        watchCallback.setConf(conf);
+        watchCallback.setLatch(1);
+        watchCallback.setZk(zk);
+        watchCallback.setWatchPath("/AppConf");
 
-        // 阻塞等待获取配置信息
-        watch.await();
+        try {
+            // 阻塞等待获取配置信息
+            watchCallback.await();
 
-        while(true) {
+            while(true) {
 
-            // 当配置信息被清理时进行等待获取
-            if (conf.getConnStr() == null || "".equals(conf.getConnStr().trim())) {
-                System.out.println("配置信息丢了。。。");
-                watch.await();
-            }
+                // 当配置信息被清理时进行等待获取
+                if (conf.getConnStr() == null || "".equals(conf.getConnStr().trim())) {
+                    System.out.println("配置信息丢了。。。");
+                    watchCallback.await();
+                }
 
-            System.out.println("connString: " + conf.getConnStr());
-            try {
+                System.out.println("connString: " + conf.getConnStr());
+
                 TimeUnit.SECONDS.sleep(1);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
             }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }
