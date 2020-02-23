@@ -40,7 +40,8 @@ public class WatchCallback implements Watcher, AsyncCallback.StringCallback, Asy
             case NodeCreated:
                 break;
             case NodeDeleted:
-                // 此处会通知当前节点的下一个节点去获取锁
+                // 1、如果是第一个节点被删除了，此处只有第二个节点会获取到通知，通知其去获取锁
+                // 2、如果不是第一个节点被删除了，此处会让其后面那个节点去watch其前面一个节点
                 this.zk.getChildren("/", false, this, "getChildren");
                 break;
             case NodeDataChanged:
